@@ -1,0 +1,41 @@
+/* Style du titre principal */
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 20px;
+  font-family: Arial, sans-serif;
+}
+
+/* Container de la liste des utilisateurs */
+.user-list {
+  max-width: 500px;
+  margin: 30px auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background-color: #f9f9f9;
+  font-family: Arial, sans-serif;
+}
+
+/* Titre de la section */
+.user-list h2 {
+  text-align: center;
+  color: #34495e;
+}
+
+/* Chaque utilisateur */
+.user-item {
+  padding: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Nom et email */
+.user-name {
+  font-weight: bold;
+  color: #2980b9;
+}
+
+.user-email {
+  color: #7f8c8d;
+}
