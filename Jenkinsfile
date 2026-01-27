@@ -2,61 +2,55 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_NAME = "hichemch1/devops-project" // change ton nom Docker Hub
-        DOCKER_TAG = "latest"
+        DOCKER_BUILDKIT = '1'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                echo "Récupération du code source"
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/Hichemch-stack/devops-project.git'
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                dir('backend') {
+                    sh './mvnw clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                    sh 'npm run build -- --configuration production'
+                }
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo "Build multi-stage Docker pour Backend + Frontend"
-                
-                // Login Docker Hub
-                withCredentials([usernamePassword(credentialsId: 'DOCKER_HUB_CREDENTIALS', 
-                                                 usernameVariable: 'DOCKER_USER', 
-                                                 passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
-                }
-
-                // Build de l'image Docker (multi-stage)
-                sh """
-                    docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} .
-                """
+                sh 'docker compose build'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Deploy Containers') {
             steps {
-                echo "Push image sur Docker Hub"
-                sh """
-                    docker push ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
-                """
-            }
-        }
-
-        stage('Clean up') {
-            steps {
-                echo "Suppression des images locales pour libérer de l'espace"
-                sh """
-                    docker rmi ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} || true
-                """
+                sh 'docker compose down'
+                sh 'docker compose up -d'
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline terminé avec succès"
+            echo 'Pipeline executed successfully!'
         }
         failure {
-            echo "Pipeline échoué"
+            echo 'Pipeline failed'
         }
     }
 }
