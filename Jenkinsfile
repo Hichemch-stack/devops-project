@@ -1,47 +1,55 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven-3.9'
+        jdk 'JDK17'
+    }
+
     environment {
-        DOCKER_BUILDKIT = '1'
+        SONAR_PROJECT_KEY = "devops-backend"
+        SONAR_PROJECT_NAME = "DevOps Backend"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Hichemch-stack/devops-project.git'
+                checkout scm
             }
         }
 
         stage('Build Backend') {
             steps {
                 dir('backend') {
-                    sh './mvnw clean package -DskipTests'
+                    sh 'mvn clean verify'
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('SonarQube Analysis') {
             steps {
-                sh 'docker compose build'
-            }
-        }
-
-        stage('Deploy Containers') {
-            steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d'
+                withSonarQubeEnv('sonarqube') {
+                    dir('backend') {
+                        sh """
+                        mvn sonar:sonar \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                          -Dsonar.host.url=http://sonarqube:9000 \
+                          -Dsonar.login=${SONAR_AUTH_TOKEN}
+                        """
+                    }
+                }
             }
         }
     }
 
     post {
         success {
-            echo '🎉 CI/CD pipeline executed successfully!'
+            echo '✅ SonarQube analysis completed successfully'
         }
         failure {
-            echo '❌ Pipeline failed'
+            echo '❌ SonarQube analysis failed'
         }
     }
 }

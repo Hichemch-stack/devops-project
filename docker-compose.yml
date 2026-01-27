@@ -1,30 +1,73 @@
 services:
   mysql:
     image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: backend_db
       MYSQL_USER: adminspring
       MYSQL_PASSWORD: admin
-    volumes:
-      - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   backend:
-    build: ./backend
-    ports:
-      - "8081:8080"
+    image: devops-project-backend
+    container_name: backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/backend_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: adminspring
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+      SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT: 60000
     depends_on:
       - mysql
+    ports:
+      - "8081:8080"
 
   frontend:
-    build: ./frontend
+    image: devops-project-frontend
+    container_name: frontend
+    restart: unless-stopped
     ports:
       - "4200:80"
     depends_on:
       - backend
 
+  sonarqube-db:
+    image: postgres:15
+    container_name: sonarqube-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonar_db:/var/lib/postgresql/data
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    restart: unless-stopped
+    depends_on:
+      - sonarqube-db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+
 volumes:
   mysql_data:
+  sonar_db:
+  sonar_data:
+  sonar_extensions:
 
