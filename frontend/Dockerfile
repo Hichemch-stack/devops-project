@@ -1,59 +1,20 @@
-# ========================================
-# Stage 1 — Build Frontend Angular
-# ========================================
-FROM node:22 AS frontend-build
+# Build Angular
+FROM node:22 AS build
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copier package.json et package-lock.json pour le cache npm
-COPY frontend/package*.json ./
-
-# Installer les dépendances
+COPY package*.json ./
 RUN npm install
 
-# Copier le reste du frontend
-COPY frontend/ .
-
-# Build production Angular
+COPY . .
 RUN npx ng build frontend --configuration production
 
-# ========================================
-# Stage 2 — Build Backend Spring Boot
-# ========================================
-FROM eclipse-temurin:17-jdk-jammy AS backend-build
-
-WORKDIR /app/backend
-
-# Copier Maven Wrapper et fichiers pom.xml
-COPY backend/mvnw backend/pom.xml backend/.mvn ./ 
-
-# Copier le reste du backend
-COPY backend/src ./src
-
-# Rendre Maven Wrapper exécutable
-RUN chmod +x mvnw
-
-# Build Spring Boot JAR (skip tests pour accélérer)
-RUN ./mvnw clean package -DskipTests
-
-# ========================================
-# Stage 3 — Image finale (light)
-# ========================================
+# Serve with Nginx
 FROM nginx:alpine
 
-# Copier le frontend build dans nginx
-COPY --from=frontend-build /app/frontend/dist/frontend /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
-# Copier le backend JAR dans /app
-COPY --from=backend-build /app/backend/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar
-
-# Exposer les ports : Angular via Nginx (80) et backend (8080)
-EXPOSE 80 8080
-
-# Démarrage Nginx + backend
-# Note : pour simplifier, on peut démarrer les deux avec un petit script
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT ["docker-entrypoint.sh"]
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 

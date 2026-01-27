@@ -1,9 +1,6 @@
 services:
-
   mysql:
     image: mysql:8.0
-    container_name: mysql
-    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: backend_db
@@ -15,31 +12,18 @@ services:
       - "3306:3306"
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: backend
-    restart: unless-stopped
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/backend_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: adminspring
-      SPRING_DATASOURCE_PASSWORD: admin
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-    depends_on:
-      - mysql
+    build: ./backend
     ports:
       - "8081:8080"
+    depends_on:
+      - mysql
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
+    build: ./frontend
     ports:
       - "4200:80"
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:
