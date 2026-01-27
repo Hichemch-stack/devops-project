@@ -22,15 +22,6 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'npm install'
-                    sh 'npm run build -- --configuration production'
-                }
-            }
-        }
-
         stage('Build Docker Images') {
             steps {
                 sh 'docker compose build'
@@ -47,10 +38,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline executed successfully!'
+            echo '🎉 CI/CD pipeline executed successfully!'
         }
         failure {
-            echo 'Pipeline failed'
+            echo '❌ Pipeline failed'
         }
     }
 }
