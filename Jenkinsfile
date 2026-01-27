@@ -1,55 +1,63 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven-3.9'
-        jdk 'JDK17'
-    }
-
     environment {
-        SONAR_PROJECT_KEY = "devops-backend"
-        SONAR_PROJECT_NAME = "DevOps Backend"
+        DOCKER_BUILDKIT = '1'
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/Hichemch-stack/devops-project.git'
             }
         }
 
         stage('Build Backend') {
             steps {
                 dir('backend') {
-                    sh 'mvn clean verify'
+                    sh './mvnw clean package -DskipTests'
                 }
             }
         }
+		stage('SonarQube Analysis - Backend') {
+			steps {
+				dir('backend') {
+					withSonarQubeEnv('SonarQube') {
+						sh 'mvn clean verify sonar:sonar'
+					}
+				}
+			}
+		}
 
-        stage('SonarQube Analysis') {
+		stage('Quality Gate') {
+			steps {
+				timeout(time: 2, unit: 'MINUTES') {
+					waitForQualityGate abortPipeline: true
+				}
+			}
+		}
+        stage('Build Docker Images') {
             steps {
-                withSonarQubeEnv('sonarqube') {
-                    dir('backend') {
-                        sh """
-                        mvn sonar:sonar \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                          -Dsonar.host.url=http://sonarqube:9000 \
-                          -Dsonar.login=${SONAR_AUTH_TOKEN}
-                        """
-                    }
-                }
+                sh 'docker compose build'
+            }
+        }
+
+        stage('Deploy Containers') {
+            steps {
+                sh 'docker compose down'
+                sh 'docker compose up -d'
             }
         }
     }
 
     post {
         success {
-            echo '✅ SonarQube analysis completed successfully'
+            echo '🎉 CI/CD pipeline executed successfully!'
         }
         failure {
-            echo '❌ SonarQube analysis failed'
+            echo '❌ Pipeline failed'
         }
     }
 }
