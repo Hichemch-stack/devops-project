@@ -50,8 +50,19 @@ pipeline {
             steps {
                 sh 'docker compose down'
                 sh 'docker compose up -d'
-            }
-        }
+                // Attendre que MySQL soit prêt
+                sh '''
+                echo "Waiting for MySQL to be ready..."
+        	until docker exec mysql mysqladmin ping -h "localhost" --silent; do
+            	sleep 2
+        	done
+        	echo "MySQL is ready."
+        	'''
+    	    }	
+        } 
+
+
+
     }
 
     post {
