@@ -14,23 +14,38 @@ pipeline {
             }
         }
 
-        stage('Build Backend') {
-            steps {
-                dir('backend') {
-                    sh './mvnw clean package -DskipTests'
-                }
-            }
-        }
+		stage('Build Backend') {
+			steps {
+				dir('backend') {
+					// Build Maven inside Docker with network of docker-compose
+					sh '''
+					docker run --rm \
+					--network=host \
+					-v $PWD:/app \
+					-w /app \
+					maven:3.9.2-openjdk-17 \
+					mvn clean package -DskipTests
+					'''
+				}
+			}
+		}
 
-        stage('SonarQube Analysis - Backend') {
-            steps {
-                dir('backend') {
-                    withSonarQubeEnv('sonarqube') {
-                        sh './mvnw clean verify sonar:sonar'
-                    }
-                }
-            }
-        }
+		stage('SonarQube Analysis - Backend') {
+			steps {
+				dir('backend') {
+					withSonarQubeEnv('sonarqube') {
+						sh '''
+						docker run --rm \
+						--network=host \
+						-v $PWD:/app \
+						-w /app \
+						maven:3.9.2-openjdk-17 \
+						mvn clean verify sonar:sonar
+						'''
+					}
+				}
+			}
+		}
 
         stage('Quality Gate') {
             steps {
@@ -63,4 +78,3 @@ pipeline {
         }
     }
 }
-
