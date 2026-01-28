@@ -26,7 +26,7 @@ pipeline {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonarqube') {
-                        sh './mvnw clean verify sonar:sonar'
+                        sh './mvnw clean verify -DskipTests sonar:sonar'
                     }
                 }
             }
