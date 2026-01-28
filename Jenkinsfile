@@ -17,7 +17,9 @@ pipeline {
 		stage('Build Backend') {
 			steps {
 				dir('backend') {
-					sh './mvnw clean package -DskipTests'
+					
+					sh 'docker compose up -d mysql'
+					sh 'docker compose run --rm backend ./mvnw clean package -DskipTests'
 				}
 			}
 		}
