@@ -17,15 +17,7 @@ pipeline {
 		stage('Build Backend') {
 			steps {
 				dir('backend') {
-					// Build Maven inside Docker with network of docker-compose
-					sh '''
-					docker run --rm \
-					--network=host \
-					-v $PWD:/app \
-					-w /app \
-					maven:3.9.2-openjdk-17 \
-					mvn clean package -DskipTests
-					'''
+					sh './mvnw clean package -DskipTests'
 				}
 			}
 		}
@@ -34,14 +26,7 @@ pipeline {
 			steps {
 				dir('backend') {
 					withSonarQubeEnv('sonarqube') {
-						sh '''
-						docker run --rm \
-						--network=host \
-						-v $PWD:/app \
-						-w /app \
-						maven:3.9.2-openjdk-17 \
-						mvn clean verify sonar:sonar
-						'''
+						sh 'mvn clean verify sonar:sonar'
 					}
 				}
 			}

@@ -4,7 +4,7 @@ services:
     container_name: mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: backend_db
       MYSQL_USER: adminspring
       MYSQL_PASSWORD: admin
