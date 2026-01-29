@@ -19,7 +19,7 @@ pipeline {
 				dir('backend') {
 					
 					sh 'docker compose up -d mysql'
-					sh 'docker compose run --rm backend ./mvnw clean package -DskipTests'
+					sh './mvnw clean package -DskipTests'
 				}
 			}
 		}
