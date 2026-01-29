@@ -70,9 +70,19 @@ services:
       - sonar_data:/opt/sonarqube/data
       - sonar_extensions:/opt/sonarqube/extensions
 
+  nexus:
+    image: sonatype/nexus3
+    container_name: nexus
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    volumes:
+      - nexus_data:/nexus-data
+
 volumes:
   mysql_data:
   sonar_db:
   sonar_data:
   sonar_extensions:
+  nexus_data:
 
