@@ -36,7 +36,7 @@ pipeline {
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 2, unit: 'MINUTES') {
+                timeout(time: 15, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
@@ -45,18 +45,7 @@ pipeline {
 		stage('Deploy to Nexus') {
 			steps {
 				dir('backend') {
-					withCredentials([usernamePassword(
-						credentialsId: 'nexus-credentials',
-						usernameVariable: 'NEXUS_USER',
-						passwordVariable: 'NEXUS_PASS'
-					)]) {
-						sh '''
-						./mvnw deploy \
-						-DskipTests \
-						-Dnexus.username=$NEXUS_USER \
-						-Dnexus.password=$NEXUS_PASS
-						'''
-					}
+					sh './mvnw deploy -DskipTests'
 				}
 			}
 		}
