@@ -41,6 +41,25 @@ pipeline {
                 }
             }
         }
+		
+		stage('Deploy to Nexus') {
+			steps {
+				dir('backend') {
+					withCredentials([usernamePassword(
+						credentialsId: 'nexus-credentials',
+						usernameVariable: 'NEXUS_USER',
+						passwordVariable: 'NEXUS_PASS'
+					)]) {
+						sh '''
+						./mvnw deploy \
+						-DskipTests \
+						-Dnexus.username=$NEXUS_USER \
+						-Dnexus.password=$NEXUS_PASS
+						'''
+					}
+				}
+			}
+		}
 
         stage('Build Docker Images') {
             steps {
