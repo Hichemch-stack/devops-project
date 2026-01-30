@@ -29,15 +29,8 @@ pipeline {
             }
         }
 
-        stage('Set Git Tag') {
-            steps {
-                script {
-                    env.GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                }
-            }
-        }
-
         /* ===================== BACKEND ===================== */
+
         stage('Build Backend') {
             steps {
                 dir('backend') {
@@ -65,42 +58,60 @@ pipeline {
             }
         }
 
+        // ======= Déploiement Maven =========
         stage('Deploy Backend to Nexus') {
             steps {
                 dir('backend') {
-                    withCredentials([usernamePassword(
-                        credentialsId: NEXUS_CREDENTIALS,
-                        usernameVariable: 'NEXUS_USER',
-                        passwordVariable: 'NEXUS_PASSWORD'
-                    )]) {
-                        sh """
-                        ./mvnw deploy -DskipTests \
-                          -Dnexus.username=$NEXUS_USER \
-                          -Dnexus.password=$NEXUS_PASSWORD
-                        """
+                    script {
+                        def isSnapshot = sh(
+                            script: "grep -q 'SNAPSHOT' pom.xml && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
+
+                        def repoUrl = isSnapshot == 'true' ?
+                            'http://192.168.56.20:8082/repository/maven-snapshots/' :
+                            'http://192.168.56.20:8082/repository/maven-releases/'
+
+                        withCredentials([usernamePassword(
+                            credentialsId: NEXUS_CREDENTIALS,
+                            usernameVariable: 'NEXUS_USER',
+                            passwordVariable: 'NEXUS_PASSWORD'
+                        )]) {
+                            sh """
+                            echo "Deploying to ${isSnapshot == 'true' ? 'Snapshots' : 'Releases'} repository"
+                            ./mvnw deploy -DskipTests \
+                                -Dnexus.username=$NEXUS_USER \
+                                -Dnexus.password=$NEXUS_PASSWORD \
+                                -DaltDeploymentRepository=internal.repo::default::${repoUrl}
+                            """
+                        }
                     }
                 }
             }
         }
 
+        // ======= Docker Backend =========
         stage('Build Backend Docker Image') {
             steps {
                 dir('backend') {
-                    sh """
-                    docker build -t ${BACKEND_IMAGE}:${BACKEND_TAG} \
-                                 -t ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} .
-                    """
+                    script {
+                        def gitTag = sh(script: "git describe --tags --always", returnStdout: true).trim()
+                        env.BACKEND_TAG = gitTag
+                        sh "docker build -t ${BACKEND_IMAGE}:${BACKEND_TAG} ."
+                    }
                 }
             }
         }
 
         stage('Push Backend Docker Image') {
             steps {
-                withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_TOKEN')]) {
+                withCredentials([string(
+                    credentialsId: DOCKERHUB_CREDENTIALS,
+                    variable: 'DOCKER_TOKEN'
+                )]) {
                     sh """
                     echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
                     docker push ${BACKEND_IMAGE}:${BACKEND_TAG}
-                    docker push ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}
                     docker tag ${BACKEND_IMAGE}:${BACKEND_TAG} ${BACKEND_IMAGE}:latest
                     docker push ${BACKEND_IMAGE}:latest
                     docker logout
@@ -110,12 +121,70 @@ pipeline {
         }
 
         /* ===================== FRONTEND ===================== */
+
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    sh '''
+                    npm install
+                    npm run build --prod
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Frontend') {
+            steps {
+                dir('frontend') {
+                    withSonarQubeEnv('sonarqube') {
+                        sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=frontend \
+                          -Dsonar.projectName=DevOps-Frontend \
+                          -Dsonar.sources=src \
+                          -Dsonar.language=ts \
+                          -Dsonar.sourceEncoding=UTF-8
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Frontend to Nexus') {
+            steps {
+                dir('frontend') {
+                    script {
+                        def isSnapshot = sh(
+                            script: "grep -q 'SNAPSHOT' ../backend/pom.xml && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
+
+                        def repoUrl = isSnapshot == 'true' ?
+                            'http://192.168.56.20:8082/repository/maven-snapshots/' :
+                            'http://192.168.56.20:8082/repository/maven-releases/'
+
+                        withCredentials([usernamePassword(
+                            credentialsId: NEXUS_CREDENTIALS,
+                            usernameVariable: 'NEXUS_USER',
+                            passwordVariable: 'NEXUS_PASSWORD'
+                        )]) {
+                            sh """
+                            zip -r frontend-${BACKEND_TAG}.zip dist
+                            curl -u $NEXUS_USER:$NEXUS_PASSWORD \
+                                --upload-file frontend-${FRONTEND_TAG}.zip \
+                                ${repoUrl}frontend/frontend-${FRONTEND_TAG}.zip
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build Frontend Docker Image') {
             steps {
                 dir('frontend') {
                     sh """
-                    docker build -t ${FRONTEND_IMAGE}:${FRONTEND_TAG} \
-                                 -t ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} .
+                    docker build -t ${FRONTEND_IMAGE}:${FRONTEND_TAG} .
                     """
                 }
             }
@@ -123,11 +192,13 @@ pipeline {
 
         stage('Push Frontend Docker Image') {
             steps {
-                withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_TOKEN')]) {
+                withCredentials([string(
+                    credentialsId: DOCKERHUB_CREDENTIALS,
+                    variable: 'DOCKER_TOKEN'
+                )]) {
                     sh """
                     echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
                     docker push ${FRONTEND_IMAGE}:${FRONTEND_TAG}
-                    docker push ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT}
                     docker tag ${FRONTEND_IMAGE}:${FRONTEND_TAG} ${FRONTEND_IMAGE}:latest
                     docker push ${FRONTEND_IMAGE}:latest
                     docker logout
@@ -137,6 +208,7 @@ pipeline {
         }
 
         /* ===================== DEPLOY ===================== */
+
         stage('Deploy Containers') {
             steps {
                 sh 'docker compose down'
