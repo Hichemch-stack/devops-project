@@ -8,7 +8,7 @@ pipeline {
         NEXUS_CREDENTIALS = 'nexus-credentials'
 
         // Docker Hub
-        DOCKERHUB_CREDENTIALS = 'docker-hub-token'   // type: Secret Text
+        DOCKERHUB_CREDENTIALS = 'docker-hub'  
         DOCKERHUB_USERNAME = 'hichemch1'
         IMAGE_NAME = 'hichemch1/backend'
         IMAGE_TAG = "${BUILD_NUMBER}"
