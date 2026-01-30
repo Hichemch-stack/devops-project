@@ -61,24 +61,23 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                echo "🐳 Build Docker image ${IMAGE_NAME}:${IMAGE_TAG}"
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-            }
-        }
+		stage('Build & Push Docker Image') {
+			steps {
+				dir('backend') {
+					script {
+						echo "🐳 Build Docker image ${IMAGE_NAME}:${IMAGE_TAG}"
+						sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+						
+						echo "🚀 Push Docker image to Docker Hub"
+						docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS}") {
+							docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+							docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push("latest")
+						}
+					}
+				}
+			}
+		}
 
-        stage('Push Docker Image') {
-            steps {
-                echo "🚀 Push Docker image to Docker Hub"
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS}") {
-                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
-                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push("latest")
-                    }
-                }
-            }
-        }
 
         stage('Deploy Containers') {
             steps {
