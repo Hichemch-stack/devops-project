@@ -3,12 +3,15 @@ pipeline {
 
     environment {
         DOCKER_BUILDKIT = '1'
-        NEXUS_CREDENTIALS = 'nexus-credentials' 
-        
-        DOCKERHUB_CREDENTIALS = 'docker-hub' 
-        DOCKERHUB_USERNAME = 'hichemch1'         
-        IMAGE_NAME = "${DOCKERHUB_USERNAME}/backend"        
-        IMAGE_TAG = "${env.BUILD_NUMBER}"                  
+
+        // Nexus
+        NEXUS_CREDENTIALS = 'nexus-credentials'
+
+        // Docker Hub
+        DOCKERHUB_CREDENTIALS = 'docker-hub-token'   // type: Secret Text
+        DOCKERHUB_USERNAME = 'hichemch1'
+        IMAGE_NAME = 'hichemch1/backend'
+        IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -29,11 +32,11 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis - Backend') {
+        stage('SonarQube Analysis') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonarqube') {
-                        sh 'mvn clean verify sonar:sonar'
+                        sh './mvnw clean verify sonar:sonar'
                     }
                 }
             }
@@ -51,48 +54,53 @@ pipeline {
             steps {
                 dir('backend') {
                     withCredentials([usernamePassword(
-                        credentialsId: "${NEXUS_CREDENTIALS}",
+                        credentialsId: NEXUS_CREDENTIALS,
                         usernameVariable: 'NEXUS_USER',
                         passwordVariable: 'NEXUS_PASSWORD'
                     )]) {
-                        sh './mvnw deploy -DskipTests -Dnexus.username=$NEXUS_USER -Dnexus.password=$NEXUS_PASSWORD'
+                        sh """
+                        ./mvnw deploy -DskipTests \
+                          -Dnexus.username=$NEXUS_USER \
+                          -Dnexus.password=$NEXUS_PASSWORD
+                        """
                     }
                 }
             }
         }
 
-		stage('Build & Push Docker Image') {
-			steps {
-				dir('backend') {
-					script {
-						echo "🐳 Build Docker image ${IMAGE_NAME}:${IMAGE_TAG}"
-						sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-						
-						echo "🚀 Push Docker image to Docker Hub"
-						docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS}") {
-							docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
-							docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push("latest")
-						}
-					}
-				}
-			}
-		}
+        stage('Build Docker Image') {
+            steps {
+                dir('backend') {
+                    sh """
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    """
+                }
+            }
+        }
 
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([string(
+                    credentialsId: DOCKERHUB_CREDENTIALS,
+                    variable: 'DOCKER_TOKEN'
+                )]) {
+                    sh """
+                    echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                    docker push ${IMAGE_NAME}:latest
+                    docker logout
+                    """
+                }
+            }
+        }
 
         stage('Deploy Containers') {
             steps {
                 sh 'docker compose down'
                 sh 'docker compose up -d'
-                // Attendre que MySQL soit prêt
-                sh '''
-                echo "Waiting for MySQL to be ready..."
-                until docker exec mysql mysqladmin ping -h "localhost" --silent; do
-                    sleep 2
-                done
-                echo "MySQL is ready."
-                '''
-            }    
-        } 
+            }
+        }
     }
 
     post {
