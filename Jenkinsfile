@@ -138,20 +138,24 @@ pipeline {
         }
 
 
-        stage('SonarQube Frontend') {
-            steps {
-                dir('frontend') {
-                    	withSonarQubeEnv('sonarqube') {
-                        	sh '''
-                            	sonar-scanner \
-                              	-Dsonar.projectKey=frontend \
-                              	-Dsonar.projectName=DevOps-Frontend \
-                              	-Dsonar.sources=src \
-                        	'''
-                    	}
-                }
-            }
-        }
+	stage('SonarQube Frontend') {
+		steps {
+			dir('frontend') {
+				script {
+					def scannerHome = tool 'sonar-scanner'
+					withSonarQubeEnv('sonarqube') {
+						sh """
+						${scannerHome}/bin/sonar-scanner \
+							-Dsonar.projectKey=frontend \
+							-Dsonar.projectName=DevOps-Frontend \
+							-Dsonar.sources=src
+							"""
+					}
+				}
+			}
+		}
+	}
+
 
         stage('Deploy Frontend to Nexus') {
             steps {
