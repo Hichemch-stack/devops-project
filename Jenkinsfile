@@ -20,7 +20,7 @@ pipeline {
         MAVEN_OPTS      = "-Dmaven.repo.local=$WORKSPACE/.m2"
         NPM_CONFIG_CACHE= "$WORKSPACE/.npm"
 	// =============== token Sonar ==============
-        SONAR_AUTH_TOKEN = credentials('SONAR_AUTH_TOKEN') 
+        SONAR_AUTH_TOKEN = credentials('sonar-token') 
         SONAR_HOST_URL = 'http://192.168.56.20:9000'
     }
 
