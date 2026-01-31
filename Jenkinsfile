@@ -54,6 +54,19 @@ pipeline {
                 }
             }
         }
+	stage('Backend Unit Tests') {
+    	    steps {
+        	dir('backend') {
+            	    sh './mvnw test'
+        	}
+            }
+    	    post {
+        	always {
+            	    junit 'backend/target/surefire-reports/*.xml'
+            	}
+    	    }
+	}
+
 
         stage('SonarQube Backend') {
             steps {
