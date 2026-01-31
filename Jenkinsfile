@@ -129,9 +129,9 @@ pipeline {
                 steps {
                         dir('frontend') {
                                 sh '''
-                                        mkdir -p .npm
-                                        npm ci --unsafe-perm --cache $PWD/.npm
-                                        npm run build --prod
+                                        npm ci 
+                                        npm run build
+					stash name: 'frontend-dist', includes: 'dist/frontend/**'
                                 '''
                         }
                 }
@@ -159,6 +159,7 @@ pipeline {
 	stage('Deploy Frontend to Nexus') {
 		steps {
 			dir('frontend') {
+				unstash 'frontend-dist'
 				archiveArtifacts artifacts: 'dist/frontend/**', fingerprint: true	
 				withCredentials([usernamePassword(
 					credentialsId: 'nexus-credentials',
