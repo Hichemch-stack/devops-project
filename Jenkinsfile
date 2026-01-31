@@ -19,6 +19,9 @@ pipeline {
         // ================= CACHE =================
         MAVEN_OPTS      = "-Dmaven.repo.local=$WORKSPACE/.m2"
         NPM_CONFIG_CACHE= "$WORKSPACE/.npm"
+	// =============== token Sonar ==============
+        SONAR_AUTH_TOKEN = credentials('SONAR_AUTH_TOKEN') 
+        SONAR_HOST_URL = 'http://192.168.56.20:9000'
     }
 
     options {
@@ -139,27 +142,20 @@ pipeline {
 
 
         stage('SonarQube Frontend') {
-		agent {
-        		docker {
-            			image 'sonarsource/sonar-scanner-cli:5'
-            			reuseNode true
-        		}
-    		}
-
-            	steps {
-                	dir('frontend') {
-                    		withSonarQubeEnv('sonarqube') {
-                        		sh '''
-                            		sonar-scanner \
-                              		-Dsonar.projectKey=frontend \
-                              		-Dsonar.projectName=DevOps-Frontend \
-                              		-Dsonar.sources=src \
-					-Dsonar.host.url=http://192.168.56.20:9000 \
-					-Dsonar.login=${SONAR_AUTH_TOKEN}
-                        		'''
-                    		}
-                	}
-            	}
+            steps {
+                dir('frontend') {
+                    	withSonarQubeEnv('sonarqube') {
+                        	sh '''
+                            	sonar-scanner \
+                              	-Dsonar.projectKey=frontend \
+                              	-Dsonar.projectName=DevOps-Frontend \
+                              	-Dsonar.sources=src \
+				-Dsonar.host.url=$SONAR_HOST_URL \
+				-Dsonar.login=$SONAR_AUTH_TOKEN
+                        	'''
+                    	}
+                }
+            }
         }
 
         stage('Deploy Frontend to Nexus') {
