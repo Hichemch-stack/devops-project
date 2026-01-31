@@ -47,26 +47,20 @@ pipeline {
 
         /* ===================== BACKEND ===================== */
 
-	stage('Build Backend') {
-    	    steps {
-        	dir('backend') {
-            		sh 'docker compose up -d mysql'
-            		sh './mvnw -B clean package -DskipTests'
-        	}
-    	    }		
-	}
-        
-
-	stage('SonarQube Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-17-alpine'
+        stage('Build Backend') {
+            steps {
+                dir('backend') {
+                    sh 'docker compose up -d mysql'
+                    sh './mvnw -B clean package -DskipTests'
                 }
             }
+        }
+
+        stage('SonarQube Backend') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonarqube') {
-                        sh './mvnw -B verify sonar:sonar'
+                        sh './mvnw clean verify sonar:sonar'
                     }
                 }
             }
@@ -81,12 +75,6 @@ pipeline {
         }
 
         stage('Deploy Backend to Nexus') {
-            when { branch 'main' }
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-17-alpine'
-                }
-            }
             steps {
                 dir('backend') {
                     withCredentials([usernamePassword(
@@ -94,11 +82,11 @@ pipeline {
                         usernameVariable: 'NEXUS_USER',
                         passwordVariable: 'NEXUS_PASSWORD'
                     )]) {
-                        sh '''
-                            ./mvnw -B deploy -DskipTests \
-                              -Dnexus.username=$NEXUS_USER \
-                              -Dnexus.password=$NEXUS_PASSWORD
-                        '''
+                        sh """
+                        ./mvnw -B deploy -DskipTests \
+                          -Dnexus.username=$NEXUS_USER \
+                          -Dnexus.password=$NEXUS_PASSWORD
+                        """
                     }
                 }
             }
@@ -117,7 +105,6 @@ pipeline {
         }
 
         stage('Push Backend Docker Image') {
-            when { branch 'main' }
             steps {
                 withCredentials([string(
                     credentialsId: DOCKERHUB_CREDENTIALS,
@@ -164,7 +151,6 @@ pipeline {
         }
 
         stage('Deploy Frontend to Nexus') {
-            when { branch 'main' }
             steps {
                 dir('frontend') {
                     withCredentials([usernamePassword(
@@ -196,7 +182,6 @@ pipeline {
         }
 
         stage('Push Frontend Docker Image') {
-            when { branch 'main' }
             steps {
                 withCredentials([string(
                     credentialsId: DOCKERHUB_CREDENTIALS,
@@ -214,7 +199,6 @@ pipeline {
 
         /* ===================== DEPLOY ===================== */
         stage('Deploy Containers') {
-            when { branch 'main' }
             steps {
                 sh '''
                     docker compose down
