@@ -159,8 +159,7 @@ pipeline {
 	stage('Deploy Frontend to Nexus') {
 		steps {
 			dir('frontend') {
-				archiveArtifacts artifacts: 'dist/**', fingerprint: true
-	
+				archiveArtifacts artifacts: 'dist/frontend/**', fingerprint: true	
 				withCredentials([usernamePassword(
 					credentialsId: 'nexus-credentials',
 					usernameVariable: 'NEXUS_USER',
