@@ -121,19 +121,22 @@ pipeline {
         }
 
         /* ===================== FRONTEND ===================== */
+
         stage('Build Frontend') {
-            agent {
-                docker { image 'node:20-alpine' }
-            }
-            steps {
-                dir('frontend') {
-                    sh '''
-                        npm ci --no-audit --no-fund --cache $NPM_CONFIG_CACHE
-                        npm run build
-                    '''
+                agent {
+                        docker { image 'node:20-alpine' }
                 }
-            }
+                steps {
+                        dir('frontend') {
+                                sh '''
+                                        mkdir -p .npm
+                                        npm ci --unsafe-perm --cache $PWD/.npm
+                                        npm run build --prod
+                                '''
+                        }
+                }
         }
+
 
         stage('SonarQube Frontend') {
             steps {
