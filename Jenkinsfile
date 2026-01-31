@@ -122,8 +122,8 @@ pipeline {
 		steps {
 			dir('frontend') {
 				sh '''
-        				npm config set cache $PWD/.npm --global
-   			     		npm ci --unsafe-perm
+        				mkdir -p .npm
+   			     		npm ci --unsafe-perm --cache $PWD/.npm
         				npm run build --prod
       				'''
  			}
