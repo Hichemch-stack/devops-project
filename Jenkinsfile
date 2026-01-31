@@ -139,18 +139,25 @@ pipeline {
 
 
         stage('SonarQube Frontend') {
-            steps {
-                dir('frontend') {
-                    withSonarQubeEnv('sonarqube') {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=frontend \
-                              -Dsonar.projectName=DevOps-Frontend \
-                              -Dsonar.sources=src
-                        '''
-                    }
-                }
-            }
+		agent {
+        		docker {
+            			image 'sonarsource/sonar-scanner-cli:5'
+            			reuseNode true
+        		}
+    		}
+
+            	steps {
+                	dir('frontend') {
+                    		withSonarQubeEnv('sonarqube') {
+                        		sh '''
+                            		sonar-scanner \
+                              		-Dsonar.projectKey=frontend \
+                              		-Dsonar.projectName=DevOps-Frontend \
+                              		-Dsonar.sources=src
+                        		'''
+                    		}
+                	}
+            	}
         }
 
         stage('Deploy Frontend to Nexus') {
