@@ -156,25 +156,26 @@ pipeline {
 		}
 	}
 
+	stage('Deploy Frontend to Nexus') {
+		steps {
+			dir('frontend') {
+				archiveArtifacts artifacts: 'dist/**', fingerprint: true
+	
+				withCredentials([usernamePassword(
+					credentialsId: 'nexus-credentials',
+					usernameVariable: 'NEXUS_USER',
+					passwordVariable: 'NEXUS_PASSWORD'
+				)]) {
+					sh """
+					curl -u $NEXUS_USER:$NEXUS_PASSWORD \
+						--upload-file dist \
+						http://nexus:8081/repository/frontend/
+					"""
+				}
+			}
+		}
+	}
 
-        stage('Deploy Frontend to Nexus') {
-            steps {
-                dir('frontend') {
-                    withCredentials([usernamePassword(
-                        credentialsId: NEXUS_CREDENTIALS,
-                        usernameVariable: 'NEXUS_USER',
-                        passwordVariable: 'NEXUS_PASSWORD'
-                    )]) {
-                        sh '''
-                            zip -r frontend-${FRONTEND_TAG}.zip dist
-                            curl -u $NEXUS_USER:$NEXUS_PASSWORD \
-                                 --upload-file frontend-${FRONTEND_TAG}.zip \
-                                 ${NEXUS_URL}/repository/raw/
-                        '''
-                    }
-                }
-            }
-        }
 
         stage('Build Frontend Docker Image') {
             steps {
