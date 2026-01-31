@@ -115,16 +115,17 @@ pipeline {
         /* ===================== FRONTEND ===================== */
 		
 		
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh '''
-                    npm install
-                    npm run build --prod
-                    '''
-                }
-            }
-        }		
+		stage('Build Frontend') {
+			agent {
+				docker { image 'node:20-alpine' }
+			}
+			steps {
+				dir('frontend') {
+						sh 'npm ci'
+						sh 'npm run build --prod'
+				}
+			}
+		}		
 		
 		
         stage('SonarQube Frontend') {
