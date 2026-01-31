@@ -2,56 +2,77 @@ pipeline {
     agent any
 
     environment {
+        // ================= GLOBAL =================
         DOCKER_BUILDKIT = '1'
 
-        // Nexus
+        // ================= NEXUS =================
         NEXUS_CREDENTIALS = 'nexus-credentials'
 
-        // Docker Hub
+        // ================= DOCKER HUB =================
         DOCKERHUB_CREDENTIALS = 'docker-hub'
-        DOCKERHUB_USERNAME = 'hichemch1'
+        DOCKERHUB_USERNAME    = 'hichemch1'
 
-        // Backend image
-        BACKEND_IMAGE = 'hichemch1/backend'
-        BACKEND_TAG = "${BUILD_NUMBER}"
-
-        // Frontend image
+        // ================= IMAGES =================
+        BACKEND_IMAGE  = 'hichemch1/backend'
         FRONTEND_IMAGE = 'hichemch1/frontend'
-        FRONTEND_TAG = "${BUILD_NUMBER}"
+
+        // ================= CACHE =================
+        MAVEN_OPTS      = "-Dmaven.repo.local=$WORKSPACE/.m2"
+        NPM_CONFIG_CACHE= "$WORKSPACE/.npm"
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipStagesAfterUnstable()
     }
 
     stages {
 
+        /* ===================== CHECKOUT ===================== */
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Hichemch-stack/devops-project.git'
-            }
-        }
-
-        stage('Set Git Tag') {
-            steps {
+                checkout scm
                 script {
-                    env.GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    env.BACKEND_TAG  = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
+                    env.FRONTEND_TAG = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
                 }
             }
         }
 
         /* ===================== BACKEND ===================== */
         stage('Build Backend') {
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-17-alpine'
+                    args '-v $HOME/.m2:/root/.m2'
+                }
+            }
             steps {
                 dir('backend') {
-                    sh 'docker compose up -d mysql'
-                    sh './mvnw clean package -DskipTests'
+                    sh '''
+                        docker compose up -d mysql
+                        ./mvnw -B clean package -DskipTests
+                    '''
                 }
             }
         }
 
         stage('SonarQube Backend') {
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-17-alpine'
+                }
+            }
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonarqube') {
-                        sh './mvnw clean verify sonar:sonar'
+                        sh './mvnw -B verify sonar:sonar'
                     }
                 }
             }
@@ -64,9 +85,14 @@ pipeline {
                 }
             }
         }
-		
-        // ======= Déploiement Maven =========
+
         stage('Deploy Backend to Nexus') {
+            when { branch 'main' }
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-17-alpine'
+                }
+            }
             steps {
                 dir('backend') {
                     withCredentials([usernamePassword(
@@ -74,81 +100,77 @@ pipeline {
                         usernameVariable: 'NEXUS_USER',
                         passwordVariable: 'NEXUS_PASSWORD'
                     )]) {
-                        sh """
-                        ./mvnw deploy -DskipTests \
-                          -Dnexus.username=$NEXUS_USER \
-                          -Dnexus.password=$NEXUS_PASSWORD
-                        """
-                    }
-                }
-            }
-        }
-
-        // ======= Docker Backend =========
-        stage('Build Backend Docker Image') {
-            steps {
-                dir('backend') {
-                    sh """
-                    docker build -t ${BACKEND_IMAGE}:${BACKEND_TAG} \
-                                 -t ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT} .
-                    """
-                }
-            }
-        }
-		
-
-        stage('Push Backend Docker Image') {
-            steps {
-                withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_TOKEN')]) {
-                    sh """
-                    echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
-                    docker push ${BACKEND_IMAGE}:${BACKEND_TAG}
-                    docker push ${BACKEND_IMAGE}:${GIT_COMMIT_SHORT}
-                    docker tag ${BACKEND_IMAGE}:${BACKEND_TAG} ${BACKEND_IMAGE}:latest
-                    docker push ${BACKEND_IMAGE}:latest
-                    docker logout
-                    """
-                }
-            }
-        }
-
-        /* ===================== FRONTEND ===================== */
-		
-		
-	stage('Build Frontend') {
-		agent {
-			docker { image 'node:20-alpine' }
-		}
-		steps {
-			dir('frontend') {
-				sh '''
-        				mkdir -p .npm
-   			     		npm ci --unsafe-perm --cache $PWD/.npm
-        				npm run build --prod
-      				'''
- 			}
-		}
-	}		
-		
-		
-        stage('SonarQube Frontend') {
-            steps {
-                dir('frontend') {
-                    withSonarQubeEnv('sonarqube') {
                         sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=frontend \
-                          -Dsonar.projectName=DevOps-Frontend \
-                          -Dsonar.sources=src \
-                          -Dsonar.language=ts \
-                          -Dsonar.sourceEncoding=UTF-8
+                            ./mvnw -B deploy -DskipTests \
+                              -Dnexus.username=$NEXUS_USER \
+                              -Dnexus.password=$NEXUS_PASSWORD
                         '''
                     }
                 }
             }
         }
-		
-		stage('Deploy Frontend to Nexus') {
+
+        stage('Build Backend Docker Image') {
+            steps {
+                dir('backend') {
+                    sh '''
+                        docker build \
+                          -t ${BACKEND_IMAGE}:${BACKEND_TAG} \
+                          -t ${BACKEND_IMAGE}:latest .
+                    '''
+                }
+            }
+        }
+
+        stage('Push Backend Docker Image') {
+            when { branch 'main' }
+            steps {
+                withCredentials([string(
+                    credentialsId: DOCKERHUB_CREDENTIALS,
+                    variable: 'DOCKER_TOKEN'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+                        docker push ${BACKEND_IMAGE}:${BACKEND_TAG}
+                        docker push ${BACKEND_IMAGE}:latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        /* ===================== FRONTEND ===================== */
+        stage('Build Frontend') {
+            agent {
+                docker { image 'node:20-alpine' }
+            }
+            steps {
+                dir('frontend') {
+                    sh '''
+                        npm ci --no-audit --no-fund --cache $NPM_CONFIG_CACHE
+                        npm run build
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Frontend') {
+            steps {
+                dir('frontend') {
+                    withSonarQubeEnv('sonarqube') {
+                        sh '''
+                            sonar-scanner \
+                              -Dsonar.projectKey=frontend \
+                              -Dsonar.projectName=DevOps-Frontend \
+                              -Dsonar.sources=src
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Frontend to Nexus') {
+            when { branch 'main' }
             steps {
                 dir('frontend') {
                     withCredentials([usernamePassword(
@@ -156,57 +178,66 @@ pipeline {
                         usernameVariable: 'NEXUS_USER',
                         passwordVariable: 'NEXUS_PASSWORD'
                     )]) {
-                        sh """
+                        sh '''
                             zip -r frontend-${FRONTEND_TAG}.zip dist
                             curl -u $NEXUS_USER:$NEXUS_PASSWORD \
-                                --upload-file frontend-${FRONTEND_TAG}.zip 
-                        """
+                                 --upload-file frontend-${FRONTEND_TAG}.zip \
+                                 ${NEXUS_URL}/repository/raw/
+                        '''
                     }
                 }
             }
         }
-		
-		stage('Build Frontend Docker Image') {
+
+        stage('Build Frontend Docker Image') {
             steps {
                 dir('frontend') {
-                    sh """
-                    docker build -t ${FRONTEND_IMAGE}:${FRONTEND_TAG} \
-                                 -t ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT} .
-                    """
+                    sh '''
+                        docker build \
+                          -t ${FRONTEND_IMAGE}:${FRONTEND_TAG} \
+                          -t ${FRONTEND_IMAGE}:latest .
+                    '''
                 }
             }
         }
-		
+
         stage('Push Frontend Docker Image') {
+            when { branch 'main' }
             steps {
-                withCredentials([string(credentialsId: DOCKERHUB_CREDENTIALS, variable: 'DOCKER_TOKEN')]) {
-                    sh """
-                    echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
-                    docker push ${FRONTEND_IMAGE}:${FRONTEND_TAG}
-                    docker push ${FRONTEND_IMAGE}:${GIT_COMMIT_SHORT}
-                    docker tag ${FRONTEND_IMAGE}:${FRONTEND_TAG} ${FRONTEND_IMAGE}:latest
-                    docker push ${FRONTEND_IMAGE}:latest
-                    docker logout
-                    """
+                withCredentials([string(
+                    credentialsId: DOCKERHUB_CREDENTIALS,
+                    variable: 'DOCKER_TOKEN'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login -u ${DOCKERHUB_USERNAME} --password-stdin
+                        docker push ${FRONTEND_IMAGE}:${FRONTEND_TAG}
+                        docker push ${FRONTEND_IMAGE}:latest
+                        docker logout
+                    '''
                 }
             }
         }
 
         /* ===================== DEPLOY ===================== */
         stage('Deploy Containers') {
+            when { branch 'main' }
             steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d'
+                sh '''
+                    docker compose down
+                    docker compose up -d
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '🎉 CI/CD pipeline executed successfully!'
+            echo '✅ CI/CD pipeline exécuté avec succès'
         }
         failure {
             echo '❌ Pipeline failed'
         }
+  
     }
 }
+
