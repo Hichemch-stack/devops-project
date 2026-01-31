@@ -123,17 +123,18 @@ pipeline {
 
         stage('Build Frontend') {
                 agent {
-                        docker { image 'node:20-alpine' }
+                        docker { image 'node:20-alpine' 
 			args '-e NPM_CONFIG_CACHE=/tmp/.npm'
-                }
+                	}
+		}
                 steps {
                         dir('frontend') {
                                 sh '''
 					rm -rf node_modules
                                         npm ci 
                                         npm run build
-					stash name: 'frontend-dist', includes: 'dist/frontend/**'
                                 '''
+				stash name: 'frontend-dist', includes: 'dist/frontend/**'
                         }
                 }
         }
