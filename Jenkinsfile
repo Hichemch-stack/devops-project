@@ -46,24 +46,18 @@ pipeline {
         }
 
         /* ===================== BACKEND ===================== */
-        stage('Build Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9-eclipse-temurin-17-alpine'
-                    args '-v $HOME/.m2:/root/.m2'
-                }
-            }
-            steps {
-                dir('backend') {
-                    sh '''
-                        docker compose up -d mysql
-                        ./mvnw -B clean package -DskipTests
-                    '''
-                }
-            }
-        }
 
-        stage('SonarQube Backend') {
+	stage('Build Backend') {
+    	    steps {
+        	dir('backend') {
+            		sh 'docker compose up -d mysql'
+            		sh './mvnw -B clean package -DskipTests'
+        	}
+    	    }		
+	}
+        
+
+	stage('SonarQube Backend') {
             agent {
                 docker {
                     image 'maven:3.9-eclipse-temurin-17-alpine'
