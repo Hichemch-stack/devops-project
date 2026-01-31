@@ -153,7 +153,9 @@ pipeline {
                             		sonar-scanner \
                               		-Dsonar.projectKey=frontend \
                               		-Dsonar.projectName=DevOps-Frontend \
-                              		-Dsonar.sources=src
+                              		-Dsonar.sources=src \
+					-Dsonar.host.url=http://192.168.56.20:9000 \
+					-Dsonar.login=${SONAR_AUTH_TOKEN}
                         		'''
                     		}
                 	}
