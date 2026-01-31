@@ -171,7 +171,7 @@ pipeline {
 					sh """
 					curl -u $NEXUS_USER:$NEXUS_PASSWORD \
 						--upload-file dist \
-						http://nexus:8081/repository/frontend/
+						http://localhost:8081/repository/frontend/
 					"""
 				}
 			}
