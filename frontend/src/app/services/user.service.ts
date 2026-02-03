@@ -8,8 +8,8 @@ import { User } from '../models/user';
 })
 export class UserService {
 
-  private apiUrl = 'http://192.168.56.20:8081/api/users';
-
+  private apiUrl = '/api/users';
+  
   constructor(private http: HttpClient) {}
 
   getUsers(): Observable<User[]> {
