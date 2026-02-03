@@ -188,14 +188,13 @@ pipeline {
             			)]) {
 
                 			sh '''
-                			echo " Zipping Angular frontend..."
-                			cd dist
-                			zip -r frontend.zip .
+                			echo " Creating frontend.tar.gz..."
+                                        tar -czf frontend.tar.gz -C dist .
 
-                			echo " Uploading frontend.zip to Nexus..."
+                			echo " Uploading frontend.tar.gz to Nexus..."
                 			curl -u "$NEXUS_USER:$NEXUS_PASSWORD" \
-                     				--upload-file frontend.zip \
-                     				http://192.168.56.20:8082/repository/frontend/frontend.zip
+                     				--upload-file frontend.tar.gz \
+                     				http://192.168.56.20:8082/repository/frontend/frontend.tar.gz
                 			'''
             			}
         		}
