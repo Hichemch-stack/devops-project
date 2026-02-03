@@ -1,0 +1,21 @@
+<h2>Liste des utilisateurs</h2>
+
+<p *ngIf="loading">Chargement...</p>
+
+<p *ngIf="!loading && users.length === 0">
+  Aucun utilisateur trouvé.
+</p>
+
+<table *ngIf="users.length > 0" border="1" cellpadding="8">
+  <tr>
+    <th>ID</th>
+    <th>Nom</th>
+    <th>Email</th>
+  </tr>
+  <tr *ngFor="let user of users">
+    <td>{{ user.id }}</td>
+    <td>{{ user.name }}</td>
+    <td>{{ user.email }}</td>
+  </tr>
+</table>
+
