@@ -172,25 +172,35 @@ pipeline {
 	}
 
 	stage('Deploy Frontend to Nexus') {
-		steps {
-			dir('frontend') {
-				unstash 'frontend-dist'
-				archiveArtifacts artifacts: 'dist/frontend/**', fingerprint: true	
-				withCredentials([usernamePassword(
-					credentialsId: 'nexus-credentials',
-					usernameVariable: 'NEXUS_USER',
-					passwordVariable: 'NEXUS_PASSWORD'
-				)]) {
-					sh """
-					curl -u $NEXUS_USER:$NEXUS_PASSWORD \
-						--upload-file dist \
-						http://192.168.56.20:8082/repository/frontend/
-					"""
-				}
-			}
-		}
-	}
+    		steps {
+        		dir('frontend') {
 
+            			// Récupération du build Angular
+           	 		unstash 'frontend-dist'
+
+            			// Archive Jenkins (optionnel mais utile)
+            			archiveArtifacts artifacts: 'dist/**', fingerprint: true
+
+            			withCredentials([usernamePassword(
+                			credentialsId: 'nexus-credentials',
+                			usernameVariable: 'NEXUS_USER',
+                			passwordVariable: 'NEXUS_PASSWORD'
+            			)]) {
+
+                			sh '''
+                			echo " Zipping Angular frontend..."
+                			cd dist
+                			zip -r frontend.zip .
+
+                			echo " Uploading frontend.zip to Nexus..."
+                			curl -u "$NEXUS_USER:$NEXUS_PASSWORD" \
+                     				--upload-file frontend.zip \
+                     				http://192.168.56.20:8082/repository/frontend/frontend.zip
+                			'''
+            			}
+        		}
+    		}
+	}
 
         stage('Build Frontend Docker Image') {
             steps {
