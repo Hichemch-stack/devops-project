@@ -1,30 +1,23 @@
 import { Component, OnInit } from '@angular/core';
-import { UserService } from '../../services/user.service';
-import { User } from '../../models/user';
+import { CommonModule } from '@angular/common';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-user',
+  standalone: true,
+  imports: [CommonModule, HttpClientModule],
   templateUrl: './user.component.html',
   styleUrls: ['./user.component.css']
 })
 export class UserComponent implements OnInit {
 
-  users: User[] = [];
-  loading = true;
+  users: any[] = [];
 
-  constructor(private userService: UserService) {}
+  constructor(private http: HttpClient) {}
 
-  ngOnInit(): void {
-    this.userService.getUsers().subscribe({
-      next: (data) => {
-        this.users = data;
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error('Erreur API', err);
-        this.loading = false;
-      }
-    });
+  ngOnInit() {
+    this.http.get<any[]>('http://192.168.56.20:8081/api/users')
+      .subscribe(data => this.users = data);
   }
 }
 
