@@ -48,10 +48,11 @@ pipeline {
 
         stage('Build Backend') {
             steps {
-                dir('backend') {
+                 
                     sh 'docker compose up -d mysql'
+	            dir('backend') {
                     sh './mvnw -B clean package -DskipTests'
-                }
+                    }
             }
         }
 	stage('Backend Unit Tests') {
@@ -62,7 +63,7 @@ pipeline {
             }
     	    post {
         	always {
-            	    junit 'backend/target/surefire-reports/*.xml'
+            	    junit 'target/surefire-reports/*.xml'
             	}
     	    }
 	}
@@ -135,19 +136,20 @@ pipeline {
         /* ===================== FRONTEND ===================== */
 
         stage('Build Frontend') {
-                agent {
-                        docker { image 'node:20-alpine' 
-			args '-e NPM_CONFIG_CACHE=/tmp/.npm'
-                	}
-		}
                 steps {
                         dir('frontend') {
                                 sh '''
-					rm -rf node_modules
-                                        npm ci 
-                                        npm run build
-                                '''
-				stash name: 'frontend-dist', includes: 'dist/frontend/**'
+                        		docker run --rm \
+                  			-v "$PWD":/app \
+                  			-w /app \
+                  			node:20-alpine \
+                  			sh -c "
+                    				rm -rf node_modules &&
+                    				npm ci &&
+                    				npm run build
+                  			"
+				'''
+				stash name: 'frontend-dist', includes: 'dist/**'
                         }
                 }
         }

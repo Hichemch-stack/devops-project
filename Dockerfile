@@ -6,7 +6,14 @@ RUN apt-get update && apt-get install -y \
     git \
     maven \
     docker.io \
-    docker-compose-plugin \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Docker Compose v2 (official)
+RUN mkdir -p /usr/local/lib/docker/cli-plugins && \
+    curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
 USER jenkins
+
