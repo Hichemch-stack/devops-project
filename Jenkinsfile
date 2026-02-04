@@ -28,20 +28,23 @@ pipeline {
     stages {
 
         /* ===================== CHECKOUT ===================== */
-        stage('Checkout') {
-            steps {
-                checkout scm
-                script {
-                    env.GIT_COMMIT_SHORT = sh(
-                        script: "git rev-parse --short HEAD",
-                        returnStdout: true
-                    ).trim()
 
-                    env.BACKEND_TAG  = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
-                    env.FRONTEND_TAG = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
-                }
-            }
-        }
+	stage('Checkout') {
+    		steps {
+        		git branch: 'main',
+            			url: 'https://github.com/Hichemch-stack/devops-project.git',
+            			credentialsId: 'github_token'
+        		script {
+            			env.GIT_COMMIT_SHORT = sh(
+                			script: "git rev-parse --short HEAD",
+                			returnStdout: true
+            			).trim()
+
+            			env.BACKEND_TAG  = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
+            			env.FRONTEND_TAG = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
+        		}
+    		}
+	}
 
         /* ===================== BACKEND ===================== */
         stage('Build Backend') {
