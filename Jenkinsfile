@@ -240,7 +240,7 @@ pipeline {
                 '''
             }
         }
-    }
+    
 
     post {
         success {
