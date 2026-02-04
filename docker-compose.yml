@@ -42,18 +42,6 @@ services:
       - "4200:80"
     depends_on:
       - backend
-  jenkins:
-    build: .
-    container_name: jenkins
-    restart: unless-stopped
-    privileged: true
-    user: root
-    ports:
-      - "8080:8080"
-
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
 
   sonarqube-db:
     image: postgres:15
@@ -118,5 +106,4 @@ volumes:
   sonar_extensions:
   nexus_data:
   grafana_data:
-  jenkins_home:
 
